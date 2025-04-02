@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsão de Temperatura</title>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #005f6a;
+        }
+
+        .weather-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: white;
+            width: 300px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .temperature {
+            font-size: 50px;
+            color: #ff6347;
+        }
+
+        .weather-icon {
+            font-size: 70px;
+            color: #ff6347;
+            margin-bottom: 20px;
+        }
+
+        .date-time {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .weather-description {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .error {
+            color: red;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Última Temperatura Prevista</h1>
+    
+    <div class="weather-container">
+        <div id="weather-icon" class="weather-icon">
+            <!-- Ícone do clima será inserido aqui -->
+        </div>
+        <div id="temperature" class="temperature">
+            <!-- Temperatura prevista será inserida aqui -->
+        </div>
+        <div id="date-time" class="date-time">
+            <!-- Data e hora da previsão serão inseridos aqui -->
+        </div>
+        <div id="weather-description" class="weather-description">
+            <!-- Descrição da temperatura será inserida aqui -->
+        </div>
+        <div id="error-message" class="error">
+            <!-- Mensagem de erro será exibida aqui se houver -->
+        </div>
+    </div>
+
+    <script>
+        // Função para obter a previsão mais recente da API
+        async function fetchPrediction() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/latest_prediction');
+                if (!response.ok) {
+                    throw new Error("Erro ao carregar a previsão.");
+                }
+                const data = await response.json();
+
+                // Arredondar a temperatura para 2 casas decimais
+                const predictedTemperature = data.predicted_temperature.toFixed(2);
+
+                // Exibindo a temperatura arredondada
+                document.getElementById("temperature").textContent = `${predictedTemperature} °C`;
+
+                // Exibindo a data e hora
+                document.getElementById("date-time").textContent = `Previsto em: ${data.created_at}`;
+
+                // Determinando o ícone baseado na temperatura
+                let weatherIcon = '';
+                let weatherDesc = '';
+                if (predictedTemperature > 27) {
+                    weatherIcon = '<i class="fas fa-sun"></i>';
+                    weatherDesc = 'Clima ensolarado';
+                } else if (predictedTemperature < 10) {
+                    weatherIcon = '<i class="fas fa-snowflake"></i>';
+                    weatherDesc = 'Clima frio';
+                } else if (predictedTemperature >= 10 && predictedTemperature <= 20) {
+                    weatherIcon = '<i class="fas fa-cloud-sun"></i>';
+                    weatherDesc = 'Clima ameno';
+                } else {
+                    weatherIcon = '<i class="fas fa-cloud-sun"></i>';
+                    weatherDesc = 'Temperatura agradável';
+                }
+
+                document.getElementById("weather-icon").innerHTML = weatherIcon;
+                document.getElementById("weather-description").textContent = weatherDesc;
+
+            } catch (error) {
+                document.getElementById("error-message").textContent = error.message;
+            }
+        }
+
+        // Chama a função assim que a página carregar
+        window.onload = fetchPrediction;
+    </script>
+
+</body>
+</html>
