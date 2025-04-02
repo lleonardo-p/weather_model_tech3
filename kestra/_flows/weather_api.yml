@@ -45,10 +45,11 @@ tasks:
       image: python:slim
     warningOnStdErr: false
     beforeCommands:
-        - pip install numpy
-        - pip install joblib
+        - pip install psycopg2-binary
+        - pip install sqlalchemy
+        - pip install pandas
         - pip install xgboost
-        - pip install kestra
+        - pip install joblib
     commands:
       - python weather_api/predict.py  "weather_api/model.pkl" {{ outputs.consume_weather["vars"] }}
 

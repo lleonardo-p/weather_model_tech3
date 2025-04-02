@@ -17,3 +17,9 @@ CREATE TABLE feature_store (
     temperature_6h_mean FLOAT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Adicionado para registrar o momento de criação
 );
+
+CREATE TABLE temperature_predictions (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    predicted_temperature FLOAT
+);

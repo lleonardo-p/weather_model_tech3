@@ -1,69 +1,83 @@
-import sys
-import re
-import json
+import pandas as pd
+import joblib
+from sqlalchemy import create_engine
 import xgboost
-import numpy as np
-import joblib  # Para carregar o modelo serializado
 
+def fetch_latest_data(engine, n=1):
+    """
+    Busca os n registros mais recentes da tabela 'feature_store'.
+    """
+    query = f" SELECT * FROM feature_store ORDER BY created_at DESC LIMIT {n};"
+    # Consultar o banco de dados
+    df = pd.read_sql(query, engine)
+    return df
 
-# Função para tratar a string
-def convert_to_valid_json(input_string):
-    # Substituir as chaves sem aspas para estarem com aspas duplas
-    input_string = re.sub(r'(\w+):', r'"\1":', input_string)
-    return input_string
+def preprocess_data(df):
+    """
+    Realiza o pré-processamento dos dados antes de alimentar no modelo.
+    """
+    # Excluir colunas que não são necessárias para o modelo
+    columns_to_keep = ['relative_humidity_2m', 'apparent_temperature', 'precipitation', 'rain',
+                    'weather_code', 'cloud_cover', 'wind_direction_10m', 'wind_speed_10m', 'is_day']
 
-# Função para carregar o modelo serializado
-def load_model(model_file):
-    try:
-        model = joblib.load(model_file)
-        return model
-    except Exception as e:
-        print(f"Erro ao carregar o modelo: {e}")
-        sys.exit(1)
+    df = df[columns_to_keep]  # Filtra o DataFrame para manter apenas as colunas
 
-# Função para predizer a temperatura com base no JSON de entrada
-def predict_temperature(input_json, model):
-    # Carregar os dados do JSON passado como argumento
-    try:
-        data = json.loads(input_json)
-    except json.JSONDecodeError as e:
-        print(f"Erro ao carregar JSON: {e}")
-        return
-    
-    # Prepara os dados para o modelo (removendo "temperature_2m", pois é a variável alvo)
-    input_data = np.array([[
-        data["rain"],
-        data["is_day"],
-        data["cloud_cover"],
-        data["weather_code"],
-        data["precipitation"],
-        data["wind_speed_10m"],
-        data["wind_direction_10m"],
-        data["apparent_temperature"],
-        data["relative_humidity_2m"]
-    ]])
+    # Certificar-se de que os dados estão no formato correto
+    df.fillna(0, inplace=True)  # Preencher valores nulos com 0, se necessário
 
-    # Prever a temperatura usando o modelo carregado
-    predicted_temperature = model.predict(input_data)
-    
-    print(f"Temperatura prevista: {predicted_temperature[0]} °C")
+    return df
+
+def load_model(model_path):
+    """
+    Carrega o modelo serializado (exemplo: XGBoost, Random Forest, etc.).
+    """
+    model = joblib.load(model_path)  # Carregar o modelo XGBoost com joblib
+    return model
+
+def make_predictions(model, df):
+    """
+    Realiza previsões utilizando o modelo carregado (XGBoost).
+    """
+    # Converter o DataFrame para DMatrix, que é o formato usado pelo XGBoost
+    predictions = model.predict(df)
+    return predictions
+
+def save_predictions_to_db(engine, predictions):
+    """
+    Salva as previsões no banco de dados na tabela 'temperature_predictions'.
+    """
+    # Criar um DataFrame com as previsões
+    prediction_data = pd.DataFrame({
+        'predicted_temperature': predictions
+    })
+
+    # Inserir as previsões na tabela temperature_predictions
+    prediction_data.to_sql('temperature_predictions', engine, if_exists='append', index=False)
+    print("Previsões salvas no banco de dados com sucesso!")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Por favor, forneça o caminho para o modelo serializado e um JSON como argumento.")
-        sys.exit(1)
+    # Configurar conexão com o banco de dados
+    DB_URL = "postgresql://kestra:k3str4@host.docker.internal:5432/tech3"
+    engine = create_engine(DB_URL)
 
-    # Carregar o modelo serializado
-    model_file = sys.argv[1]
-    model = load_model(model_file)
+    # Buscar os dados mais recentes
+    df = fetch_latest_data(engine, n=1)
+    print("Dados brutos carregados:")
+    print(df.head())
 
-    # Receber o JSON como argumento
-    input_json = sys.argv[2]
-    print(input_json)
-    input_json = convert_to_valid_json(input_json)
-    print(input_json)
-    print(type(input_json))
+    # Pré-processar os dados
+    df_processed = preprocess_data(df)
+    print("Dados processados para o modelo:")
+    print(df_processed.head())
 
+    # Carregar modelo serializado
+    model_path = "weather_api/model.pkl" # Caminho do modelo salvo
+    model = load_model(model_path)
 
-    # Fazer a predição
-    predict_temperature(input_json, model)
+    # Fazer previsões
+    predictions = make_predictions(model, df_processed)
+    print("Previsões:")
+    print(predictions)
+
+    # Salvar as previsões no banco de dados
+    save_predictions_to_db(engine, predictions)
