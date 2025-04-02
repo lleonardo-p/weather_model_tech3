@@ -13,30 +13,29 @@ tasks:
       - pip install openmeteo_requests
       - pip install pandas
       - pip install requests_cache
-      - pip install retry_requests     
-      - pip install kestra 
+      - pip install retry_requests
+      - pip install kestra
     commands:
       - python weather_api/weather_api_stream.py
 
-  - id: task2
+  - id: log_api
     type: io.kestra.plugin.core.log.Log
     message: "O resultado da soma é: {{ outputs.consume_weather }}"
 
-  - id: insert_to_postgres
-    type: io.kestra.plugin.jdbc.postgresql.Query
-    url: jdbc:postgresql://host.docker.internal:5432/tech3
-    username: kestra
-    password: k3str4
-    sql: |
-      INSERT INTO weather_data (
-        rain, time, is_day, cloud_cover, weather_code, precipitation,
-        temperature_2m, wind_speed_10m, wind_direction_10m,
-        apparent_temperature, relative_humidity_2m
-      ) VALUES (
-        {{ outputs.consume_weather["vars"]["rain"] }}, {{ outputs.consume_weather["vars"]["time"] }}, {{ outputs.consume_weather["vars"]["is_day"] }}, {{ outputs.consume_weather["vars"]["cloud_cover"] }},
-        {{ outputs.consume_weather["vars"]["weather_code"] }}, {{ outputs.consume_weather["vars"]["precipitation"] }}, {{ outputs.consume_weather["vars"]["temperature_2m"] }},
-        {{ outputs.consume_weather["vars"]["wind_speed_10m"] }}, {{ outputs.consume_weather["vars"]["wind_direction_10m"] }}, {{ outputs.consume_weather["vars"]["apparent_temperature"] }}, {{ outputs.consume_weather["vars"]["relative_humidity_2m"] }}
-      );
+  - id: feature_selection
+    type: io.kestra.plugin.scripts.python.Commands
+    namespaceFiles:
+      enabled: true
+    docker:
+      image: python:slim
+    warningOnStdErr: false
+    beforeCommands:
+      - pip install sqlalchemy
+      - pip install pandas
+      - pip install psycopg2-binary
+      - pip install kestra
+    commands:
+      - python weather_api/feature_creation.py --data {{ outputs.consume_weather["vars"] }} --db_url "postgresql://kestra:k3str4@localhost:5432/tech3"
 
   - id: predict_weather
     type: io.kestra.plugin.scripts.python.Commands
@@ -47,15 +46,13 @@ tasks:
     warningOnStdErr: false
     beforeCommands:
         - pip install numpy
-        - pip install joblib 
+        - pip install joblib
         - pip install xgboost
         - pip install kestra
     commands:
       - python weather_api/predict.py  "weather_api/model.pkl" {{ outputs.consume_weather["vars"] }}
 
-
 triggers:
   - id: schedule
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "*/15 * * * *"
-      
