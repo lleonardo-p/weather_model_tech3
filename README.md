@@ -91,5 +91,6 @@ Para aprimorar o projeto, algumas melhorias podem ser implementadas:
 ## Conclusão
 
 Este projeto combina análise de dados históricos com dados em tempo real para previsão de temperatura ambiente. A utilização de aprendizado de máquina permitiu construir um modelo preciso, enquanto a orquestração com Kestra garantiu um fluxo eficiente e automatizado para coleta, armazenamento e previsão dos dados. Futuras melhorias visam tornar o sistema mais robusto e escalável, permitindo um monitoramento mais eficiente e a evolução contínua do modelo.
-"""
+
+## Exemplo App consumindo a predição
 ![App consumindo a predição](documentation/img/app_weather.png)
