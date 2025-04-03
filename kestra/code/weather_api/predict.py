@@ -1,7 +1,7 @@
 import pandas as pd
 import joblib
 from sqlalchemy import create_engine
-import xgboost
+from sklearn.ensemble import RandomForestRegressor
 
 def fetch_latest_data(engine, n=1):
     """
@@ -17,14 +17,17 @@ def preprocess_data(df):
     Realiza o pré-processamento dos dados antes de alimentar no modelo.
     """
     # Excluir colunas que não são necessárias para o modelo
-    columns_to_keep = ['relative_humidity_2m', 'apparent_temperature', 'precipitation', 'rain',
-                    'weather_code', 'cloud_cover', 'wind_direction_10m', 'wind_speed_10m', 'is_day']
+    columns_to_keep = [
+        'relative_humidity_2m', 'apparent_temperature', 'precipitation', 'rain',
+        'weather_code', 'cloud_cover', 'wind_direction_10m', 'wind_speed_10m',
+        'is_day', 'wind_speed_6h_mean', 'precipitation_6h_mean', 'temperature_6h_mean'
+    ]
 
-    df = df[columns_to_keep]  # Filtra o DataFrame para manter apenas as colunas
-
+    df = df[columns_to_keep]  # Filtra o DataFrame para manter apenas as colunas 
+    
     # Certificar-se de que os dados estão no formato correto
     df.fillna(0, inplace=True)  # Preencher valores nulos com 0, se necessário
-
+    
     return df
 
 def load_model(model_path):
@@ -50,7 +53,7 @@ def save_predictions_to_db(engine, predictions):
     prediction_data = pd.DataFrame({
         'predicted_temperature': predictions
     })
-
+    
     # Inserir as previsões na tabela temperature_predictions
     prediction_data.to_sql('temperature_predictions', engine, if_exists='append', index=False)
     print("Previsões salvas no banco de dados com sucesso!")
